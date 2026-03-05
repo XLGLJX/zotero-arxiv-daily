@@ -1,5 +1,7 @@
 from .protocol import Paper
 import math
+import html
+import re
 
 
 framework = """
@@ -74,7 +76,7 @@ def get_block_html(title:str, authors:str, rate:str, tldr:str, pdf_url:str, affi
     </tr>
     <tr>
         <td style="font-size: 14px; color: #333; padding: 8px 0;">
-            <strong>TLDR:</strong> {tldr}
+            {tldr}
         </td>
     </tr>
 
@@ -86,6 +88,107 @@ def get_block_html(title:str, authors:str, rate:str, tldr:str, pdf_url:str, affi
 </table>
 """
     return block_template.format(title=title, authors=authors,rate=rate, tldr=tldr, pdf_url=pdf_url, affiliations=affiliations)
+
+
+def _format_inline_markdown(text: str) -> str:
+    safe_text = html.escape(text)
+    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", safe_text, flags=re.DOTALL)
+
+
+def _close_all_lists(parts: list[str], list_types: list[str], li_open: list[bool], current_level: int) -> int:
+    for level in range(current_level, -1, -1):
+        if li_open[level]:
+            parts.append("</li>")
+        parts.append(f"</{list_types[level]}>")
+    list_types.clear()
+    li_open.clear()
+    return -1
+
+
+def format_tldr_for_html(tldr: str | None) -> str:
+    if tldr is None:
+        return "No TLDR"
+
+    lines = str(tldr).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    unordered_pattern = re.compile(r"^(\s*)[-*]\s+(.*)$")
+    ordered_pattern = re.compile(r"^(\s*)(\d+)[\.\)]\s+(.*)$")
+
+    parts: list[str] = []
+    list_types: list[str] = []
+    li_open: list[bool] = []
+    current_level = -1
+
+    for raw_line in lines:
+        line = raw_line.replace("\t", "    ")
+        unordered_match = unordered_pattern.match(line)
+        ordered_match = ordered_pattern.match(line)
+
+        if unordered_match or ordered_match:
+            if unordered_match:
+                indent_len = len(unordered_match.group(1))
+                item_text = _format_inline_markdown(unordered_match.group(2).strip())
+                target_type = "ul"
+            else:
+                indent_len = len(ordered_match.group(1))
+                item_text = _format_inline_markdown(ordered_match.group(3).strip())
+                target_type = "ol"
+            target_level = max(0, indent_len // 2)
+
+            if current_level == -1:
+                for level in range(target_level + 1):
+                    list_type = target_type if level == target_level else "ul"
+                    parts.append(f"<{list_type}>")
+                    list_types.append(list_type)
+                    li_open.append(False)
+                current_level = target_level
+            elif target_level > current_level:
+                for level in range(current_level + 1, target_level + 1):
+                    list_type = target_type if level == target_level else "ul"
+                    parts.append(f"<{list_type}>")
+                    list_types.append(list_type)
+                    li_open.append(False)
+                current_level = target_level
+            elif target_level < current_level:
+                for level in range(current_level, target_level, -1):
+                    if li_open[level]:
+                        parts.append("</li>")
+                        li_open[level] = False
+                    parts.append(f"</{list_types[level]}>")
+                    li_open.pop()
+                    list_types.pop()
+                current_level = target_level
+                if li_open[current_level]:
+                    parts.append("</li>")
+                    li_open[current_level] = False
+            elif li_open[current_level]:
+                parts.append("</li>")
+                li_open[current_level] = False
+
+            if list_types[current_level] != target_type:
+                if li_open[current_level]:
+                    parts.append("</li>")
+                    li_open[current_level] = False
+                parts.append(f"</{list_types[current_level]}>")
+                list_types[current_level] = target_type
+                parts.append(f"<{target_type}>")
+
+            parts.append(f"<li>{item_text}")
+            li_open[current_level] = True
+            continue
+
+        if current_level >= 0:
+            current_level = _close_all_lists(parts, list_types, li_open, current_level)
+
+        stripped = line.strip()
+        if not stripped:
+            parts.append("<br>")
+        else:
+            parts.append(_format_inline_markdown(stripped) + "<br>")
+
+    if current_level >= 0:
+        current_level = _close_all_lists(parts, list_types, li_open, current_level)
+
+    return "".join(parts)
 
 def get_stars(score:float):
     full_star = '<span class="full-star">⭐</span>'
@@ -125,7 +228,8 @@ def render_email(papers:list[Paper]) -> str:
                 affiliations += ', ...'
         else:
             affiliations = 'Unknown Affiliation'
-        parts.append(get_block_html(p.title, authors, rate, p.tldr, p.pdf_url, affiliations))
+        tldr = format_tldr_for_html(p.tldr)
+        parts.append(get_block_html(p.title, authors, rate, tldr, p.pdf_url, affiliations))
 
     content = '<br>' + '</br><br>'.join(parts) + '</br>'
     return framework.replace('__CONTENT__', content)

@@ -26,6 +26,8 @@ llm:
   # Arguments for the LLM API. See [here](https://platform.openai.com/docs/api-reference/chat/create) for more details.
     max_tokens: 16384
     model: ???
+  affiliations_generation_kwargs:
+  # Optional override args used only for affiliations extraction (key/base_url stay in llm.api). Example: {"model": "gpt-4o-mini"}
   language: English # Preferred language for the TL;DR. Example: English
 
 reranker:

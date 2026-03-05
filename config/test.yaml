@@ -1,3 +1,6 @@
+defaults:
+  - base
+
 zotero:
   user_id: ${oc.env:ZOTERO_ID}
   api_key: ${oc.env:ZOTERO_KEY}
@@ -6,8 +9,8 @@ zotero:
 email:
   sender: ${oc.env:SENDER}
   receiver: ${oc.env:RECEIVER}
-  smtp_server: smtp.qq.com
-  smtp_port: 465
+  smtp_server: smtp.zju.edu.cn
+  smtp_port: 994
   sender_password: ${oc.env:SENDER_PASSWORD}
 
 llm:
@@ -15,14 +18,20 @@ llm:
     key: ${oc.env:OPENAI_API_KEY}
     base_url: ${oc.env:OPENAI_API_BASE}
   generation_kwargs:
-    model: gpt-4o-mini
+    model: gemini-2.5-flash-nothinking
+    max_tokens: 16384
   affiliations_generation_kwargs:
     model: gpt-4o-mini
+  language: Chinese
 
 source:
   arxiv:
-    category: ["cs.AI","cs.CV","cs.LG","cs.CL"]
+    category: ['cs.AI', 'cs.CV', 'cs.LG', 'cs.RO', 'cs.CR', 'cs.CY']
 
 executor:
-  debug: ${oc.env:DEBUG,null}
+  debug: true
+  send_empty: false
+  max_workers: 4
+  max_paper_num: 5
   source: ['arxiv']
+  reranker: local
