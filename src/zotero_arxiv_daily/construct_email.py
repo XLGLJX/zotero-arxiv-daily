@@ -54,7 +54,17 @@ def get_empty_html():
   """
   return block_template
 
-def get_block_html(title:str, authors:str, rate:str, tldr:str, pdf_url:str, affiliations:str=None):
+def get_block_html(
+    title: str,
+    authors: str,
+    rate: str,
+    tldr: str,
+    pdf_url: str,
+    abs_url: str,
+    affiliations: str | None = None,
+    acceptance_html: str = "",
+    project_button_html: str = "",
+):
     block_template = """
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 8px; padding: 16px; background-color: #f9f9f9;">
     <tr>
@@ -67,6 +77,7 @@ def get_block_html(title:str, authors:str, rate:str, tldr:str, pdf_url:str, affi
             {authors}
             <br>
             <i>{affiliations}</i>
+            {acceptance_html}
         </td>
     </tr>
     <tr>
@@ -82,12 +93,24 @@ def get_block_html(title:str, authors:str, rate:str, tldr:str, pdf_url:str, affi
 
     <tr>
         <td style="padding: 8px 0;">
+            {project_button_html}
+            <a href="{abs_url}" style="display: inline-block; text-decoration: none; font-size: 14px; font-weight: bold; color: #fff; background-color: #337ab7; padding: 8px 16px; border-radius: 4px; margin-right: 8px;">ABS</a>
             <a href="{pdf_url}" style="display: inline-block; text-decoration: none; font-size: 14px; font-weight: bold; color: #fff; background-color: #d9534f; padding: 8px 16px; border-radius: 4px;">PDF</a>
         </td>
     </tr>
 </table>
 """
-    return block_template.format(title=title, authors=authors,rate=rate, tldr=tldr, pdf_url=pdf_url, affiliations=affiliations)
+    return block_template.format(
+        title=title,
+        authors=authors,
+        rate=rate,
+        tldr=tldr,
+        pdf_url=pdf_url,
+        abs_url=abs_url,
+        affiliations=affiliations,
+        acceptance_html=acceptance_html,
+        project_button_html=project_button_html,
+    )
 
 
 def _format_inline_markdown(text: str) -> str:
@@ -229,7 +252,41 @@ def render_email(papers:list[Paper]) -> str:
         else:
             affiliations = 'Unknown Affiliation'
         tldr = format_tldr_for_html(p.tldr)
-        parts.append(get_block_html(p.title, authors, rate, tldr, p.pdf_url, affiliations))
+        pdf_url = p.pdf_url if p.pdf_url is not None else p.url
+        abs_url = p.url if p.url is not None else pdf_url
+        acceptance_html = ""
+        if p.acceptance_info:
+            info = p.acceptance_info.strip()
+            if len(info) > 220:
+                info = info[:217] + "..."
+            acceptance_html = (
+                "<br>"
+                f"<span style=\"color: #1f7a1f; font-weight: 600;\">Accepted: {html.escape(info)}</span>"
+            )
+
+        project_button_html = ""
+        if p.project_url:
+            safe_project_url = html.escape(p.project_url, quote=True)
+            project_button_html = (
+                f"<a href=\"{safe_project_url}\" "
+                "style=\"display: inline-block; text-decoration: none; font-size: 14px; font-weight: bold; "
+                "color: #fff; background-color: #5cb85c; padding: 8px 16px; border-radius: 4px; margin-right: 8px;\">"
+                "Project</a>"
+            )
+
+        parts.append(
+            get_block_html(
+                p.title,
+                authors,
+                rate,
+                tldr,
+                pdf_url,
+                abs_url,
+                affiliations,
+                acceptance_html=acceptance_html,
+                project_button_html=project_button_html,
+            )
+        )
 
     content = '<br>' + '</br><br>'.join(parts) + '</br>'
     return framework.replace('__CONTENT__', content)

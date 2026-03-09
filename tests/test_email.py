@@ -22,6 +22,30 @@ def papers() -> list[Paper]:
 def test_render_email(papers:list[Paper]):
     email_content = render_email(papers)
     assert email_content is not None
+    assert 'href="https://arxiv.org/abs/2512.04296"' in email_content
+    assert 'href="https://arxiv.org/pdf/2512.04296"' in email_content
+    assert ">ABS<" in email_content
+    assert ">PDF<" in email_content
+
+def test_render_email_with_acceptance_and_project_button():
+    paper = Paper(
+        source="arxiv",
+        title="Test Paper",
+        authors=["Test Author"],
+        abstract="Test Abstract",
+        url="https://arxiv.org/abs/2512.04296",
+        pdf_url="https://arxiv.org/pdf/2512.04296",
+        full_text="Test Full Text",
+        tldr="Test TLDR",
+        affiliations=["Test Affiliation"],
+        acceptance_info="Accepted to CVPR 2026",
+        project_url="https://github.com/example/project",
+        score=8.0
+    )
+    email_content = render_email([paper])
+    assert "Accepted: Accepted to CVPR 2026" in email_content
+    assert 'href="https://github.com/example/project"' in email_content
+    assert ">Project<" in email_content
 
 def test_render_email_markdown_tldr():
     paper = Paper(

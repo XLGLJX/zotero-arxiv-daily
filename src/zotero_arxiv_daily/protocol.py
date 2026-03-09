@@ -20,6 +20,8 @@ class Paper:
     full_text: Optional[str] = None
     tldr: Optional[str] = None
     affiliations: Optional[list[str]] = None
+    acceptance_info: Optional[str] = None
+    project_url: Optional[str] = None
     score: Optional[float] = None
 
     def _parse_affiliations_response(self, raw_affiliations: object) -> list[str]:
