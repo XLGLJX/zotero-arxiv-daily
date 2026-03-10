@@ -55,6 +55,7 @@ def get_empty_html():
   return block_template
 
 def get_block_html(
+    index: int,
     title: str,
     authors: str,
     rate: str,
@@ -69,6 +70,7 @@ def get_block_html(
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 8px; padding: 16px; background-color: #f9f9f9;">
     <tr>
         <td style="font-size: 20px; font-weight: bold; color: #333;">
+            <span style="display: inline-block; margin-right: 8px; font-size: 14px; color: #fff; background: #5a5a5a; padding: 2px 8px; border-radius: 999px;">[{index}]</span>
             {title}
         </td>
     </tr>
@@ -102,6 +104,7 @@ def get_block_html(
 """
     return block_template.format(
         title=title,
+        index=index,
         authors=authors,
         rate=rate,
         tldr=tldr,
@@ -235,7 +238,7 @@ def render_email(papers:list[Paper]) -> str:
     if len(papers) == 0 :
         return framework.replace('__CONTENT__', get_empty_html())
     
-    for p in papers:
+    for idx, p in enumerate(papers, start=1):
         #rate = get_stars(p.score)
         rate = round(p.score, 1) if p.score is not None else 'Unknown'
         author_list = [a for a in p.authors]
@@ -276,6 +279,7 @@ def render_email(papers:list[Paper]) -> str:
 
         parts.append(
             get_block_html(
+                idx,
                 p.title,
                 authors,
                 rate,

@@ -18,13 +18,50 @@ _ACCEPTED_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 _NOT_ACCEPTED_PATTERN = re.compile(
-    r"\b(under review|under submission|submitted to)\b",
+    r"\b(under review|under submission|submitted to|submission|under consideration)\b",
     flags=re.IGNORECASE,
 )
 _PROJECT_KEYWORD_PATTERN = re.compile(
     r"\b(project page|project website|project site|code|github|implementation|open[- ]source|demo|online demo|interactive demo)\b",
     flags=re.IGNORECASE,
 )
+
+# Common CCF-recognized venues (abbreviations + frequent full names) used in arXiv comments.
+_CCF_VENUE_KEYWORDS = [
+    # AI/NLP/CV/DM
+    "aaai", "ijcai", "neurips", "nips", "icml", "iclr", "kdd", "www", "the web conference",
+    "acl", "emnlp", "naacl", "coling", "cvpr", "iccv", "eccv", "icra", "iros", "rss",
+    "sigir", "cikm", "wsdm", "ecir",
+    # DB
+    "sigmod", "vldb", "pvldb", "icde", "pods",
+    # SE/PL
+    "icse", "fse", "ase", "issta", "pldi", "popl", "oopsla",
+    # Systems/Architecture
+    "sosp", "osdi", "nsdi", "eurosys", "isca", "micro", "hpca", "asplos",
+    "dac", "iccad", "date",
+    # Security/Network
+    "ieee s&p", "oakland", "ccs", "ndss", "usenix security", "sigcomm", "infocom",
+    # HCI/Graphics
+    "chi", "uist", "ubicomp", "siggraph", "siggraph asia",
+    # Journals (abbrev + full names)
+    "tpami", "ieee transactions on pattern analysis and machine intelligence",
+    "ijcv", "international journal of computer vision",
+    "jmlr", "journal of machine learning research",
+    "tacl", "transactions of the association for computational linguistics",
+    "tkde", "ieee transactions on knowledge and data engineering",
+    "tkdd", "acm transactions on knowledge discovery from data",
+    "tosem", "acm transactions on software engineering and methodology",
+    "tse", "ieee transactions on software engineering",
+    "tifs", "ieee transactions on information forensics and security",
+    "tdsc", "ieee transactions on dependable and secure computing",
+    "ton", "ieee/acm transactions on networking",
+    "toc", "ieee transactions on computers",
+    "tocs", "acm transactions on computer systems",
+]
+_CCF_VENUE_PATTERNS = [
+    re.compile(rf"(?<![a-z0-9]){re.escape(keyword)}(?![a-z0-9])", flags=re.IGNORECASE)
+    for keyword in _CCF_VENUE_KEYWORDS
+]
 
 
 def _clean_url(url: str) -> str:
@@ -60,6 +97,13 @@ def parse_project_url_from_text(text: str | None) -> str | None:
     return None
 
 
+def contains_ccf_venue(text: str | None) -> bool:
+    if not text:
+        return False
+    normalized_text = " ".join(text.split())
+    return any(pattern.search(normalized_text) for pattern in _CCF_VENUE_PATTERNS)
+
+
 def parse_arxiv_comments(comment: str | None) -> tuple[str | None, str | None]:
     if not comment:
         return None, None
@@ -67,7 +111,10 @@ def parse_arxiv_comments(comment: str | None) -> tuple[str | None, str | None]:
     normalized_comment = " ".join(comment.split())
 
     acceptance_info = None
-    if _ACCEPTED_PATTERN.search(normalized_comment) and not _NOT_ACCEPTED_PATTERN.search(normalized_comment):
+    has_negative_signal = _NOT_ACCEPTED_PATTERN.search(normalized_comment) is not None
+    has_acceptance_signal = _ACCEPTED_PATTERN.search(normalized_comment) is not None
+    has_ccf_venue_signal = contains_ccf_venue(normalized_comment)
+    if (has_acceptance_signal or has_ccf_venue_signal) and not has_negative_signal:
         acceptance_info = normalized_comment
 
     project_url = parse_project_url_from_text(normalized_comment)

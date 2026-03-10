@@ -22,6 +22,8 @@ def papers() -> list[Paper]:
 def test_render_email(papers:list[Paper]):
     email_content = render_email(papers)
     assert email_content is not None
+    assert "[1]" in email_content
+    assert "[10]" in email_content
     assert 'href="https://arxiv.org/abs/2512.04296"' in email_content
     assert 'href="https://arxiv.org/pdf/2512.04296"' in email_content
     assert ">ABS<" in email_content
